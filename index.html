@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tarefas</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="toast" id="toast"></div>
+
+  <div class="sheet">
+
+    <!-- Cabeçalho -->
+    <div class="header">
+      <h1>Lista de Tarefas</h1>
+      <p>Marque, anote e acompanhe sua pontuação</p>
+      <div class="header-divider"></div>
+    </div>
+
+    <!-- Painel de resumo -->
+    <div class="summary">
+      <div class="sum-item">
+        <span class="sum-val" id="s-done">0</span>
+        <span class="sum-label">Concluídas</span>
+      </div>
+      <div class="sum-divider"></div>
+      <div class="sum-item">
+        <span class="sum-val" id="s-total">0</span>
+        <span class="sum-label">Total</span>
+      </div>
+      <div class="sum-divider"></div>
+      <div class="sum-item">
+        <span class="sum-val" id="s-pts">0</span>
+        <span class="sum-label">Pontos</span>
+      </div>
+      <div class="sum-divider"></div>
+      <div class="xp-wrap">
+        <div class="xp-label">Progresso geral</div>
+        <div class="xp-track">
+          <div class="xp-fill" id="xp-fill" style="width:0%"></div>
+        </div>
+        <div class="xp-sub" id="xp-sub">0 de 0 tarefas concluídas</div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════ -->
+    <!--  QUESTS DIÁRIAS               -->
+    <!-- ══════════════════════════════ -->
+    <div class="lbl">
+      Quests Diárias
+      <span class="streak-badge" id="streak-badge" style="display:none;"></span>
+    </div>
+
+    <!-- Formulário para criar uma quest recorrente -->
+    <div class="quest-form">
+      <div class="quest-form-row">
+        <div class="field">
+          <label>Nome da Quest</label>
+          <input type="text" id="dq-name" placeholder="ex: Beber 2L de água, Estudar 30min...">
+        </div>
+        <div class="field" style="max-width:120px;">
+          <label>Pontos</label>
+          <select id="dq-pts">
+            <option value="1" selected>1 ponto</option>
+            <option value="2">2 pontos</option>
+          </select>
+        </div>
+        <div class="field" style="max-width:90px;justify-content:flex-end;">
+          <button class="add-btn" onclick="addDailyQuest()">+ Quest</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quests recorrentes cadastradas (modelos) -->
+    <div id="dq-model-list"></div>
+
+    <!-- Seção do dia de hoje -->
+    <div class="today-wrap" id="today-wrap">
+      <div class="today-header">
+        <span class="today-title">Hoje — <span id="today-label"></span></span>
+        <span class="today-pts">+<span id="today-pts">0</span> pts hoje</span>
+      </div>
+      <div class="today-list" id="today-list">
+        <div class="empty">Nenhuma quest ativa para hoje.</div>
+      </div>
+    </div>
+
+    <!-- Histórico colapsável -->
+    <div class="history-toggle" onclick="toggleHistory()">
+      <span>Ver histórico de quests</span>
+      <span id="history-arrow">▼</span>
+    </div>
+    <div class="history-wrap" id="history-wrap" style="display:none;">
+      <div id="history-list"></div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Gráfico -->
+    <div class="lbl">Pontuação por dia</div>
+    <div class="chart-wrap">
+      <div class="chart-container">
+        <div class="y-axis-label">Pontos</div>
+        <div class="chart-inner">
+          <div id="chart-area"></div>
+          <div class="x-axis-label">Dias</div>
+        </div>
+      </div>
+      <div class="chart-legend">
+        <div class="chart-legend-item">
+          <div class="legend-dot"></div>
+          <span>Pontos por dia</span>
+        </div>
+        <div class="chart-legend-item">
+          <div class="legend-dot" style="background:var(--accent);width:24px;height:3px;border-radius:2px;"></div>
+          <span>Linha de progresso</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
