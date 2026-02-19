@@ -224,7 +224,66 @@ body {
 }
 .quest-item.q-done .quest-item-pts { color: #3a9e6a; }
 
-/* ── Histórico ── */
+/* ── Amanhã ── */
+.tomorrow-wrap {
+  margin-top: 12px;
+  margin-bottom: 20px;
+  border: 1px dashed var(--border);
+}
+
+.tomorrow-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--card2);
+  border-bottom: 1px dashed var(--border);
+}
+
+.tomorrow-title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--muted);
+}
+
+.tomorrow-sub {
+  font-size: 11px;
+  color: var(--faint);
+  font-style: italic;
+}
+
+.tomorrow-list { padding: 4px 0; }
+
+.tomorrow-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  opacity: 0.6;
+}
+.tomorrow-item:last-child { border-bottom: none; }
+
+.tomorrow-dot {
+  width: 8px; height: 8px;
+  border: 1.5px solid var(--faint);
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.tomorrow-name {
+  flex: 1;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.tomorrow-pts {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--faint);
+}
 .history-toggle {
   display: flex;
   align-items: center;
