@@ -1,17 +1,18 @@
 // ═══════════════════════════════════════════════════
-// ESTADO — carrega dados salvos no navegador
+// ESTADO
 // ═══════════════════════════════════════════════════
 
-// Modelos de quest diária (o "template" recorrente)
-// Cada modelo: { id, name, pts }
+// Modelos de quest: [{ id, name, pts }, ...]
 let dailyModels = JSON.parse(localStorage.getItem('daily-models') || '[]');
 
-// Registros de quests diárias por dia
-// Estrutura: { "2025-02-18": { questId: true/false, ... }, ... }
+// Log de conclusões: { "2025-02-18": { "1234567": true, ... }, ... }
+// IMPORTANTE: as chaves do log são sempre STRINGS
 let dailyLog = JSON.parse(localStorage.getItem('daily-log') || '{}');
 
-// Data de hoje no formato "YYYY-MM-DD"
-const TODAY = new Date().toISOString().split('T')[0];
+// Data de hoje "YYYY-MM-DD" — usa horário local, não UTC
+const _now    = new Date();
+const TODAY   = `${_now.getFullYear()}-${String(_now.getMonth()+1).padStart(2,'0')}-${String(_now.getDate()).padStart(2,'0')}`;
+const TOMORROW = subtractDays(TODAY, -1);
 
 // ═══════════════════════════════════════════════════
 // UTILITÁRIOS
@@ -21,28 +22,22 @@ function esc(s) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-// "2025-02-18" → "18/02" (gráfico)
 function fmt(d) {
-  if (!d) return '—';
   const [y, m, dd] = d.split('-');
   return `${dd}/${m}`;
 }
 
-// "2025-02-18" → "18/02/2025" (lista)
 function fmtFull(d) {
-  if (!d) return '—';
   const [y, m, dd] = d.split('-');
   return `${dd}/${m}/${y}`;
 }
 
-// Subtrai N dias de uma data "YYYY-MM-DD"
 function subtractDays(dateStr, n) {
   const d = new Date(dateStr + 'T12:00:00');
   d.setDate(d.getDate() - n);
   return d.toISOString().split('T')[0];
 }
 
-// Toast — notificação flutuante
 function toast(msg) {
   const t = document.getElementById('toast');
   t.textContent = msg;
@@ -50,107 +45,109 @@ function toast(msg) {
   setTimeout(() => t.classList.remove('show'), 2000);
 }
 
-// Salva tudo no localStorage
 function save() {
   localStorage.setItem('daily-models', JSON.stringify(dailyModels));
-  localStorage.setItem('daily-log', JSON.stringify(dailyLog));
+  localStorage.setItem('daily-log',    JSON.stringify(dailyLog));
 }
 
 // ═══════════════════════════════════════════════════
-// STREAK — quantos dias consecutivos a quest foi feita
+// STREAK
 // ═══════════════════════════════════════════════════
 
-/**
- * Calcula o streak (sequência) de uma quest.
- * Percorre o histórico do dia de hoje para trás,
- * e conta quantos dias seguidos ela foi concluída.
- * 
- * Exemplo: se a quest foi feita nos dias 18, 17, 16, mas não no 15 → streak = 3
- */
 function getStreak(questId) {
+  const key = String(questId);
   let streak = 0;
-  let day = subtractDays(TODAY, 1); // começa no dia anterior (hoje ainda pode estar em andamento)
-
-  // Percorre até 365 dias para trás
+  let day = subtractDays(TODAY, 1);
   for (let i = 0; i < 365; i++) {
-    const log = dailyLog[day];
-    if (log && log[questId] === true) {
+    if (dailyLog[day] && dailyLog[day][key] === true) {
       streak++;
-      day = subtractDays(day, 1); // vai para o dia anterior
+      day = subtractDays(day, 1);
     } else {
-      break; // sequência quebrou
+      break;
     }
   }
   return streak;
 }
 
 // ═══════════════════════════════════════════════════
-// QUESTS DIÁRIAS — modelos (templates recorrentes)
+// AÇÕES
 // ═══════════════════════════════════════════════════
 
-// Cria um novo modelo de quest diária
 function addDailyQuest() {
   const name = document.getElementById('dq-name').value.trim();
   const pts  = parseInt(document.getElementById('dq-pts').value);
-
   if (!name) { toast('Escreva o nome da quest'); return; }
-
-  // Adiciona o modelo com um ID único
   dailyModels.push({ id: Date.now(), name, pts });
   save();
   render();
-
   document.getElementById('dq-name').value = '';
-  toast('Quest diária criada!');
+  toast('Quest criada!');
 }
 
-// Remove um modelo de quest (e seus registros históricos)
 function deleteDailyModel(id) {
+  const key = String(id);
   dailyModels = dailyModels.filter(m => m.id !== id);
-
-  // Remove os registros desta quest de todos os dias
-  Object.keys(dailyLog).forEach(day => {
-    delete dailyLog[day][id];
-  });
-
+  Object.keys(dailyLog).forEach(day => { delete dailyLog[day][key]; });
   save();
   render();
   toast('Quest removida');
 }
 
-// ═══════════════════════════════════════════════════
-// QUESTS DIÁRIAS — marcar como feita/não feita
-// ═══════════════════════════════════════════════════
-
-/**
- * Alterna o estado de uma quest em um dia específico.
- * 
- * O parâmetro `day` existe porque no histórico também é possível
- * marcar/desmarcar quests de dias anteriores.
- */
 function toggleDailyQuest(questId, day) {
-  // Se não existe registro para este dia, cria um objeto vazio
+  const key = String(questId);
   if (!dailyLog[day]) dailyLog[day] = {};
-
-  // Inverte: true → false, false/undefined → true
-  dailyLog[day][questId] = !dailyLog[day][questId];
-
+  // inverte true/false; se undefined, vira true
+  dailyLog[day][key] = !dailyLog[day][key];
   save();
   render();
-
-  const model = dailyModels.find(m => m.id === questId);
-  if (dailyLog[day][questId] && model) {
+  const model = dailyModels.find(m => String(m.id) === key);
+  if (model && dailyLog[day][key]) {
     toast(`✓ +${model.pts} ponto${model.pts > 1 ? 's' : ''}`);
   }
 }
 
+function toggleHistory() {
+  const wrap  = document.getElementById('history-wrap');
+  const arrow = document.getElementById('history-arrow');
+  const open  = wrap.style.display === 'none';
+  wrap.style.display = open ? 'block' : 'none';
+  arrow.textContent  = open ? '▲' : '▼';
+}
+
 // ═══════════════════════════════════════════════════
-// RENDER — quests diárias
+// RENDER
 // ═══════════════════════════════════════════════════
 
-function renderDailyQuests() {
+function render() {
 
-  // ── 1. Streak geral (maior streak entre todas as quests) ──
+  // ── Resumo ──
+  let doneCount = 0, totalCount = 0, totalPts = 0;
+
+  // Conta todas as quests de todos os dias registrados
+  Object.keys(dailyLog).forEach(day => {
+    dailyModels.forEach(m => {
+      totalCount++;
+      if (dailyLog[day][String(m.id)] === true) {
+        doneCount++;
+        totalPts += m.pts;
+      }
+    });
+  });
+
+  // Se hoje ainda não tem registro, conta as quests de hoje no total
+  if (!dailyLog[TODAY]) {
+    totalCount += dailyModels.length;
+  }
+
+  const pct = totalCount ? Math.round(doneCount / totalCount * 100) : 0;
+
+  document.getElementById('s-done').textContent  = doneCount;
+  document.getElementById('s-total').textContent = totalCount;
+  document.getElementById('s-pts').textContent   = totalPts;
+  document.getElementById('xp-fill').style.width = pct + '%';
+  document.getElementById('xp-sub').textContent  = `${doneCount} de ${totalCount} concluídas`;
+
+  // ── Streak geral ──
   const maxStreak = dailyModels.reduce((max, m) => Math.max(max, getStreak(m.id)), 0);
   const streakBadge = document.getElementById('streak-badge');
   if (maxStreak > 0) {
@@ -160,10 +157,10 @@ function renderDailyQuests() {
     streakBadge.style.display = 'none';
   }
 
-  // ── 2. Lista de modelos cadastrados ──
+  // ── Lista de modelos ──
   const modelList = document.getElementById('dq-model-list');
   if (dailyModels.length === 0) {
-    modelList.innerHTML = '<div class="empty" style="margin-bottom:12px;">Nenhuma quest diária criada ainda.</div>';
+    modelList.innerHTML = '<div class="empty" style="margin-bottom:12px;">Nenhuma quest criada ainda.</div>';
   } else {
     modelList.innerHTML = dailyModels.map(m => {
       const streak = getStreak(m.id);
@@ -178,105 +175,109 @@ function renderDailyQuests() {
     }).join('');
   }
 
-  // ── 3. Seção "Hoje" ──
+  // ── Hoje ──
   document.getElementById('today-label').textContent = fmtFull(TODAY);
 
-  // Calcula pontos de hoje (quests + tarefas avulsas concluídas hoje)
   const todayLog = dailyLog[TODAY] || {};
+
+  // Pontos de hoje
   let todayPts = 0;
-
-  // Pontos das quests diárias de hoje
   dailyModels.forEach(m => {
-    if (todayLog[m.id]) todayPts += m.pts;
+    if (todayLog[String(m.id)] === true) todayPts += m.pts;
   });
-
-  // Pontos das tarefas avulsas de hoje
-  tasks.forEach(t => {
-    if (t.date === TODAY && t.done) todayPts += t.pts;
-  });
-
   document.getElementById('today-pts').textContent = todayPts;
 
-  // Renderiza a lista de quests de hoje
+  // Lista de quests de hoje
   const todayList = document.getElementById('today-list');
   if (dailyModels.length === 0) {
     todayList.innerHTML = '<div class="empty">Nenhuma quest ativa para hoje.</div>';
   } else {
     todayList.innerHTML = dailyModels.map(m => {
-      const done = !!todayLog[m.id];
+      const key  = String(m.id);
+      const done = todayLog[key] === true;
+      const streak = getStreak(m.id);
       return `
         <div class="quest-item ${done ? 'q-done' : ''}">
           <div class="quest-check" onclick="toggleDailyQuest(${m.id}, '${TODAY}')">${done ? '✓' : ''}</div>
           <span class="quest-item-name">${esc(m.name)}</span>
-          <span class="quest-item-streak">${getStreak(m.id) > 0 ? '🔥 ' + getStreak(m.id) + 'd' : ''}</span>
+          ${streak > 0 ? `<span class="quest-item-streak">🔥 ${streak}d</span>` : '<span></span>'}
           <span class="quest-item-pts">${m.pts}pt${m.pts > 1 ? 's' : ''}</span>
         </div>
       `;
     }).join('');
   }
 
-  // ── 4. Histórico ──
-  renderHistory();
-}
+  // ── Amanhã ──
+  document.getElementById('tomorrow-label').textContent = fmtFull(TOMORROW);
 
-// Renderiza o histórico de dias anteriores
-function renderHistory() {
+  const tomorrowLog = dailyLog[TOMORROW] || {};
+  const tomorrowList = document.getElementById('tomorrow-list');
+
+  if (dailyModels.length === 0) {
+    tomorrowList.innerHTML = '<div class="empty" style="opacity:0.5;">Nenhuma quest cadastrada.</div>';
+  } else {
+    tomorrowList.innerHTML = dailyModels.map(m => {
+      const done = tomorrowLog[String(m.id)] === true;
+      const streak = getStreak(m.id);
+      return `
+        <div class="tomorrow-item">
+          <div class="tomorrow-dot" style="${done ? 'background:var(--faint);' : ''}"></div>
+          <span class="tomorrow-name">${esc(m.name)}${streak > 0 ? ` <span style="font-size:10px;">🔥 ${streak}d</span>` : ''}</span>
+          <span class="tomorrow-pts">${m.pts}pt${m.pts > 1 ? 's' : ''}</span>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // ── Histórico ──
   const histList = document.getElementById('history-list');
-
-  // Pega todos os dias que têm registro, exceto hoje, ordenados do mais recente
-  const pastDays = Object.keys(dailyLog)
-    .filter(d => d !== TODAY)
-    .sort()
-    .reverse();
+  const pastDays = Object.keys(dailyLog).filter(d => d !== TODAY).sort().reverse();
 
   if (pastDays.length === 0) {
     histList.innerHTML = '<div class="empty" style="padding:16px 0;">Sem histórico ainda.</div>';
-    return;
-  }
-
-  histList.innerHTML = pastDays.map(day => {
-    const log = dailyLog[day] || {};
-
-    // Pontos do dia: quests + tarefas avulsas
-    let dayPts = 0;
-    dailyModels.forEach(m => { if (log[m.id]) dayPts += m.pts; });
-    tasks.forEach(t => { if (t.date === day && t.done) dayPts += t.pts; });
-
-    // Renderiza as quests daquele dia
-    const questRows = dailyModels.map(m => {
-      const done = !!log[m.id];
+  } else {
+    histList.innerHTML = pastDays.map(day => {
+      const log = dailyLog[day] || {};
+      let dayPts = 0;
+      dailyModels.forEach(m => {
+        if (log[String(m.id)] === true) dayPts += m.pts;
+      });
+      const rows = dailyModels.map(m => {
+        const done = log[String(m.id)] === true;
+        return `
+          <div class="quest-item ${done ? 'q-done' : ''}">
+            <div class="quest-check" onclick="toggleDailyQuest(${m.id}, '${day}')">${done ? '✓' : ''}</div>
+            <span class="quest-item-name">${esc(m.name)}</span>
+            <span class="quest-item-pts">${m.pts}pt${m.pts > 1 ? 's' : ''}</span>
+          </div>
+        `;
+      }).join('');
       return `
-        <div class="quest-item ${done ? 'q-done' : ''}">
-          <div class="quest-check" onclick="toggleDailyQuest(${m.id}, '${day}')">${done ? '✓' : ''}</div>
-          <span class="quest-item-name">${esc(m.name)}</span>
-          <span class="quest-item-pts">${m.pts}pt${m.pts > 1 ? 's' : ''}</span>
+        <div class="history-day">
+          <div class="history-day-header">
+            <span>${fmtFull(day)}</span>
+            <span class="history-day-pts">${dayPts} pts</span>
+          </div>
+          ${rows}
         </div>
       `;
     }).join('');
+  }
 
-    return `
-      <div class="history-day">
-        <div class="history-day-header">
-          <span>${fmtFull(day)}</span>
-          <span class="history-day-pts">${dayPts} pts</span>
-        </div>
-        ${questRows}
-      </div>
-    `;
-  }).join('');
-}
-
-// Abre/fecha o histórico
-function toggleHistory() {
-  const wrap  = document.getElementById('history-wrap');
-  const arrow = document.getElementById('history-arrow');
-  const open  = wrap.style.display === 'none';
-  wrap.style.display = open ? 'block' : 'none';
-  arrow.textContent  = open ? '▲' : '▼';
+  // ── Gráfico ──
+  const dateMap = {};
+  Object.keys(dailyLog).forEach(day => {
+    dailyModels.forEach(m => {
+      if (dailyLog[day][String(m.id)] === true) {
+        dateMap[day] = (dateMap[day] || 0) + m.pts;
+      }
+    });
+  });
+  renderChart(dateMap);
 }
 
 // ═══════════════════════════════════════════════════
-// GRÁFICO SVG — Plano Cartesiano
+// GRÁFICO
 // ═══════════════════════════════════════════════════
 
 function renderChart(dateMap) {
@@ -293,22 +294,23 @@ function renderChart(dateMap) {
   const innerW = W - padL - padR;
   const innerH = H - padT - padB;
 
-  const pts    = dates.map(d => dateMap[d]);
-  const maxPts = Math.max(...pts, 4);
+  const vals   = dates.map(d => dateMap[d]);
+  const maxPts = Math.max(...vals, 4);
   const yStep  = innerH / maxPts;
   const xStep  = dates.length > 1 ? innerW / (dates.length - 1) : innerW / 2;
 
-  const yTicks    = [];
   const tickCount = Math.min(maxPts, 6);
+  const yTicks = [];
   for (let i = 0; i <= tickCount; i++) {
     yTicks.push(Math.round((maxPts / tickCount) * i));
   }
 
-  const points = dates.map((d, i) => {
-    const x = padL + (dates.length > 1 ? i * xStep : innerW / 2);
-    const y = padT + innerH - (dateMap[d] * yStep);
-    return { x, y, pts: dateMap[d], date: d };
-  });
+  const points = dates.map((d, i) => ({
+    x:   padL + (dates.length > 1 ? i * xStep : innerW / 2),
+    y:   padT + innerH - (dateMap[d] * yStep),
+    pts: dateMap[d],
+    date: d
+  }));
 
   let areaPath = `M ${points[0].x} ${padT + innerH}`;
   points.forEach(p => { areaPath += ` L ${p.x} ${p.y}`; });
@@ -327,84 +329,34 @@ function renderChart(dateMap) {
 
   yTicks.forEach(val => {
     const y = padT + innerH - (val * yStep);
-    svg += `<line x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" stroke="#b8ccdf" stroke-width="1" stroke-dasharray="${val === 0 ? 'none' : '4,4'}"/>`;
-    svg += `<text x="${padL - 6}" y="${y + 4}" text-anchor="end" font-family="Inter,sans-serif" font-size="10" fill="#5a7290">${val}</text>`;
+    svg += `<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="#b8ccdf" stroke-width="1" stroke-dasharray="${val === 0 ? 'none' : '4,4'}"/>`;
+    svg += `<text x="${padL-6}" y="${y+4}" text-anchor="end" font-family="Inter,sans-serif" font-size="10" fill="#5a7290">${val}</text>`;
   });
 
-  svg += `<line x1="${padL}" y1="${padT + innerH}" x2="${W - padR}" y2="${padT + innerH}" stroke="#1a3358" stroke-width="1.5"/>`;
-  svg += `<line x1="${padL}" y1="${padT}" x2="${padL}" y2="${padT + innerH}" stroke="#1a3358" stroke-width="1.5"/>`;
-  svg += `<polygon points="${W - padR},${padT + innerH} ${W - padR - 6},${padT + innerH - 4} ${W - padR - 6},${padT + innerH + 4}" fill="#1a3358"/>`;
-  svg += `<polygon points="${padL},${padT} ${padL - 4},${padT + 8} ${padL + 4},${padT + 8}" fill="#1a3358"/>`;
+  svg += `<line x1="${padL}" y1="${padT+innerH}" x2="${W-padR}" y2="${padT+innerH}" stroke="#1a3358" stroke-width="1.5"/>`;
+  svg += `<line x1="${padL}" y1="${padT}" x2="${padL}" y2="${padT+innerH}" stroke="#1a3358" stroke-width="1.5"/>`;
+  svg += `<polygon points="${W-padR},${padT+innerH} ${W-padR-6},${padT+innerH-4} ${W-padR-6},${padT+innerH+4}" fill="#1a3358"/>`;
+  svg += `<polygon points="${padL},${padT} ${padL-4},${padT+8} ${padL+4},${padT+8}" fill="#1a3358"/>`;
 
-  if (points.length > 1) svg += `<path d="${areaPath}" fill="url(#chartGrad)"/>`;
-  if (points.length > 1) svg += `<path d="${linePath}" fill="none" stroke="#1a3358" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
-
-  points.forEach((p, i) => {
-    const showLabel = dates.length <= 10 || i % Math.ceil(dates.length / 10) === 0;
-    if (showLabel) {
-      svg += `<line x1="${p.x}" y1="${padT}" x2="${p.x}" y2="${padT + innerH}" stroke="#b8ccdf" stroke-width="1" stroke-dasharray="4,4" opacity="0.5"/>`;
-      svg += `<text x="${p.x}" y="${padT + innerH + 18}" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="#5a7290" transform="rotate(-30, ${p.x}, ${padT + innerH + 18})">${fmt(p.date)}</text>`;
-    }
-    svg += `<circle cx="${p.x}" cy="${p.y}" r="5" fill="#ffffff" stroke="#1a3358" stroke-width="2"/>`;
-    const labelX = Math.min(Math.max(p.x, padL + 12), W - padR - 12);
-    svg += `<text x="${labelX}" y="${p.y - 10}" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" font-weight="600" fill="#1a3358">${p.pts}pt</text>`;
-  });
-
-  svg += `<text x="${W - padR + 4}" y="${padT + innerH + 4}" font-family="Inter,sans-serif" font-size="9" fill="#5a7290">Dias →</text>`;
-  svg += `</svg>`;
-  area.innerHTML = svg;
-}
-
-// ═══════════════════════════════════════════════════
-// RENDER PRINCIPAL — redesenha tudo
-// ═══════════════════════════════════════════════════
-
-function render() {
-
-  // ── Painel de resumo ──
-  // Conta quests diárias concluídas (todos os dias)
-  let doneQuests = 0;
-  let totalQuests = 0;
-  let ptsQuest = 0;
-  Object.keys(dailyLog).forEach(day => {
-    dailyModels.forEach(m => {
-      totalQuests++;
-      if (dailyLog[day][m.id]) { doneQuests++; ptsQuest += m.pts; }
-    });
-  });
-  // Adiciona as de hoje que ainda não têm registro (existem mas não foram marcadas)
-  if (!Object.keys(dailyLog).includes(TODAY)) {
-    totalQuests += dailyModels.length;
+  if (points.length > 1) {
+    svg += `<path d="${areaPath}" fill="url(#chartGrad)"/>`;
+    svg += `<path d="${linePath}" fill="none" stroke="#1a3358" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
   }
 
-  const totalDone  = doneQuests;
-  const totalAll   = totalQuests;
-  const totalPts   = ptsQuest;
-  const pct        = totalAll ? (totalDone / totalAll * 100).toFixed(0) : 0;
-
-  document.getElementById('s-done').textContent  = totalDone;
-  document.getElementById('s-total').textContent = totalAll;
-  document.getElementById('s-pts').textContent   = totalPts;
-  document.getElementById('xp-fill').style.width = pct + '%';
-  document.getElementById('xp-sub').textContent  = `${totalDone} de ${totalAll} tarefas concluídas`;
-
-  // ── Quests diárias ──
-  renderDailyQuests();
-
-  // ── Gráfico — pontos de quests por dia ──
-  const dateMap = {};
-
-  // Pontos das quests diárias
-  Object.keys(dailyLog).forEach(day => {
-    dailyModels.forEach(m => {
-      if (dailyLog[day][m.id]) {
-        if (!dateMap[day]) dateMap[day] = 0;
-        dateMap[day] += m.pts;
-      }
-    });
+  points.forEach((p, i) => {
+    const show = dates.length <= 10 || i % Math.ceil(dates.length / 10) === 0;
+    if (show) {
+      svg += `<line x1="${p.x}" y1="${padT}" x2="${p.x}" y2="${padT+innerH}" stroke="#b8ccdf" stroke-width="1" stroke-dasharray="4,4" opacity="0.5"/>`;
+      svg += `<text x="${p.x}" y="${padT+innerH+18}" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="#5a7290" transform="rotate(-30,${p.x},${padT+innerH+18})">${fmt(p.date)}</text>`;
+    }
+    svg += `<circle cx="${p.x}" cy="${p.y}" r="5" fill="#ffffff" stroke="#1a3358" stroke-width="2"/>`;
+    const lx = Math.min(Math.max(p.x, padL+12), W-padR-12);
+    svg += `<text x="${lx}" y="${p.y-10}" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" font-weight="600" fill="#1a3358">${p.pts}pt</text>`;
   });
 
-  renderChart(dateMap);
+  svg += `<text x="${W-padR+4}" y="${padT+innerH+4}" font-family="Inter,sans-serif" font-size="9" fill="#5a7290">Dias →</text>`;
+  svg += `</svg>`;
+  area.innerHTML = svg;
 }
 
 // ═══════════════════════════════════════════════════
