@@ -15,7 +15,7 @@
 
     <!-- Cabeçalho -->
     <div class="header">
-      <h1>Lista de Missões</h1>
+      <h1>Lista de Tarefas</h1>
       <p>Marque, anote e acompanhe sua pontuação</p>
       <div class="header-divider"></div>
     </div>
@@ -24,25 +24,22 @@
     <div class="summary">
       <div class="sum-item">
         <span class="sum-val" id="s-done">0</span>
-        <span class="sum-label">Concluídas</span>
+        <span class="sum-label">Feitas</span>
       </div>
-      <div class="sum-divider"></div>
       <div class="sum-item">
         <span class="sum-val" id="s-total">0</span>
         <span class="sum-label">Total</span>
       </div>
-      <div class="sum-divider"></div>
       <div class="sum-item">
         <span class="sum-val" id="s-pts">0</span>
         <span class="sum-label">Pontos</span>
       </div>
-      <div class="sum-divider"></div>
-      <div class="xp-wrap">
+      <div class="xp-row">
         <div class="xp-label">Progresso geral</div>
         <div class="xp-track">
           <div class="xp-fill" id="xp-fill" style="width:0%"></div>
         </div>
-        <div class="xp-sub" id="xp-sub">0 de 0 tarefas concluídas</div>
+        <div class="xp-sub" id="xp-sub">0 de 0 concluídas</div>
       </div>
     </div>
 
@@ -61,7 +58,7 @@
           <label>Nome da Quest</label>
           <input type="text" id="dq-name" placeholder="ex: Beber 2L de água, Estudar 30min...">
         </div>
-        <div class="field" style="max-width:120px;">
+        <div class="field quest-pts-field" style="max-width:120px;">
           <label>Pontos</label>
           <select id="dq-pts">
             <option value="1" selected>1 ponto</option>
